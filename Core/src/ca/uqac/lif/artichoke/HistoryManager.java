@@ -1,17 +1,17 @@
 /*
     Artichoke, enforcement of document lifecycles
     Copyright (C) 2016-2017 Sylvain Hallé
-    
+
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Lesser General Public License as published
     by the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
-    
+
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU Lesser General Public License for more details.
-    
+
     You should have received a copy of the GNU Lesser General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
@@ -26,17 +26,17 @@ import java.util.Map;
 public class HistoryManager 
 {
 	MessageDigest m_digest;
-	
+
 	Map<String,Peer> m_peerDirectory;
-	
+
 	Map<String,Group> m_groupDirectory;
-	
+
 	Map<String,Action> m_actionDirectory;
-	
+
 	static String s_historySeparator = "|";
-	
+
 	static String s_elementSeparator = "?";
-	
+
 	public HistoryManager(MessageDigest digest)
 	{
 		super();
@@ -45,22 +45,46 @@ public class HistoryManager
 		m_groupDirectory = new HashMap<String,Group>();
 		m_actionDirectory = new HashMap<String,Action>();
 	}
-	
+
+	public void add(Peer ... peers)
+	{
+		for (Peer p : peers)
+		{
+			m_peerDirectory.put(p.getName(), p);
+		}
+	}
+
+	public void add(Group ... groups)
+	{
+		for (Group g : groups)
+		{
+			m_groupDirectory.put(g.getName(), g);
+		}
+	}
+
+	public void add(Action ... actions)
+	{
+		for (Action a : actions)
+		{
+			m_actionDirectory.put(a.getName(), a);
+		}
+	}
+
 	public void setPeerDirectory(Map<String,Peer> directory)
 	{
 		m_peerDirectory = directory;
 	}
-	
+
 	public void setActionDirectory(Map<String,Action> directory)
 	{
 		m_actionDirectory = directory;
 	}
-	
+
 	public void setGroupDirectory(Map<String,Group> directory)
 	{
 		m_groupDirectory = directory;
 	}
-	
+
 	public void appendAction(History history, Peer p, Action a, Group g) throws EncryptionException
 	{
 		byte[] last_digest = new byte[]{0};
@@ -78,7 +102,7 @@ public class HistoryManager
 		HistoryElement new_he = new HistoryElement(encrypted_action, p, g, encrypted_digest);
 		history.add(new_he);
 	}
-	
+
 	public void appendAction(History history, String peer_name, String action_name, String group_name) throws EncryptionException
 	{
 		Peer p = m_peerDirectory.get(peer_name);
@@ -86,7 +110,7 @@ public class HistoryManager
 		Action a = m_actionDirectory.get(action_name);
 		appendAction(history, p, a, g);
 	}
-	
+
 	protected byte[] concatenateDigest(byte[] last_digest, byte[] encrypted_action, Group g)
 	{
 		byte[] group_bytes = g.getName().getBytes();
@@ -108,7 +132,7 @@ public class HistoryManager
 		}
 		return concatenated_bytes;
 	}
-	
+
 	public String serializeHistory(History history)
 	{
 		StringBuilder sb = new StringBuilder();
@@ -121,7 +145,7 @@ public class HistoryManager
 		String encoded_string = encoder.encodeToString(sb.toString().getBytes());
 		return encoded_string;
 	}
-	
+
 	protected String serializeHistoryElement(HistoryElement he)
 	{
 		Base64.Encoder encoder = Base64.getEncoder();
@@ -135,7 +159,7 @@ public class HistoryManager
 		sb.append(encoder.encodeToString(he.getDigest()));
 		return sb.toString();
 	}
-	
+
 	public History deserializeHistory(String s)
 	{
 		History history = new History();
@@ -153,7 +177,7 @@ public class HistoryManager
 		}
 		return history;
 	}
-	
+
 	protected HistoryElement deserializeHistoryElement(String s)
 	{
 		String[] parts = s.split(s_elementSeparator);
@@ -178,7 +202,7 @@ public class HistoryManager
 		HistoryElement he = new HistoryElement(encrypted_action, p, g, encrypted_digest);
 		return he;
 	}
-	
+
 	public boolean isHistoryValid(History history) throws InvalidHistoryException, EncryptionException
 	{
 		for (int i = history.size() - 1; i >= 1; i--)
@@ -197,6 +221,27 @@ public class HistoryManager
 				// Digests don't match
 				throw new InvalidHistoryException("Unexpected digest on element " + i);
 			}
+		}
+		return true;
+	}
+
+	public boolean evaluate(History h, Policy p) throws PolicyViolationException
+	{
+		p.reset();
+		for (HistoryElement he : h)
+		{
+			Group g = he.getGroup();
+			String action_name;
+			try
+			{
+				action_name = new String(g.decryptAction(he.getAction()));
+			}
+			catch (EncryptionException e)
+			{
+				throw new PolicyViolationException(e);
+			}
+			Action a = m_actionDirectory.get(action_name);
+			p.evaluate(he.getPeer(), a, he.getGroup());
 		}
 		return true;
 	}

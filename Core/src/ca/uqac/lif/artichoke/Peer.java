@@ -43,6 +43,25 @@ public class Peer
 		m_cipher = c;
 	}
 	
+	public Peer(String name, Cipher c, PublicKey k_public, PrivateKey k_private)
+	{
+		super();
+		m_name = name;
+		m_cipher = c;
+		m_publicKey = k_public;
+		m_privateKey = k_private;
+	}
+	
+	public void set(PublicKey k)
+	{
+		m_publicKey = k;
+	}
+	
+	public void set(PrivateKey k)
+	{
+		m_privateKey = k;
+	}
+	
 	public void setKeyPair(KeyPair pair)
 	{
 		m_privateKey = pair.getPrivate();
@@ -58,6 +77,24 @@ public class Peer
 	public String getName()
 	{
 		return m_name;
+	}
+	
+	/**
+	 * Gets the peer's private key.
+	 * @return The key
+	 */
+	public PrivateKey getPrivateKey()
+	{
+		return m_privateKey;
+	}
+	
+	/**
+	 * Gets the peer's public key.
+	 * @return The key
+	 */
+	public PublicKey getPublicKey()
+	{
+		return m_publicKey;
 	}
 	
 	public byte[] encryptDigest(byte[] digest) throws EncryptionException

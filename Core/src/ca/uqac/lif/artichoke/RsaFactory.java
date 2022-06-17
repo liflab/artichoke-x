@@ -17,25 +17,28 @@
  */
 package ca.uqac.lif.artichoke;
 
+import java.security.KeyFactory;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
+import java.security.PrivateKey;
+import java.security.PublicKey;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.KeySpec;
+import java.security.spec.PKCS8EncodedKeySpec;
+import java.security.spec.X509EncodedKeySpec;
 
 import javax.crypto.Cipher;
 import javax.crypto.NoSuchPaddingException;
 
-public class RsaFactory
+public class RsaFactory implements EncryptionFactory
 {
 	public RsaFactory()
 	{
 		super();
 	}
 
-	/**
-	 * Creates a new peer and generates a key pair
-	 * @param name
-	 * @return
-	 */
+	@Override
 	public Peer newPeer(String name)
 	{
 		Cipher c;
@@ -54,11 +57,25 @@ public class RsaFactory
 		return null;
 	}
 	
-	/**
-	 * Creates a new group and generates a key pair
-	 * @param name
-	 * @return
-	 */
+	@Override
+	public Peer newPeer(String name, PublicKey k_public, PrivateKey k_private)
+	{
+		Cipher c;
+		try {
+			c = Cipher.getInstance("RSA");
+			Peer p = new Peer(name, c, k_public, k_private);
+			return p;
+		} catch (NoSuchAlgorithmException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (NoSuchPaddingException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return null;
+	}
+	
+	@Override
 	public Group newGroup(String name)
 	{
 		Cipher c;
@@ -77,11 +94,32 @@ public class RsaFactory
 		return null;
 	}
 	
+	@Override
+	public Group newGroup(String name, PublicKey k_pub, PrivateKey k_pri)
+	{
+		Cipher c;
+		try {
+			c = Cipher.getInstance("RSA");
+			Group g = new Group(name, c);
+			g.setKeyPair(generateKeyPair());
+			return g;
+		} catch (NoSuchAlgorithmException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (NoSuchPaddingException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return null;
+	}
+	
+	@Override
 	public Action newAction(String name)
 	{
 		return new Action(name);
 	}
 	
+	@Override
 	public KeyPair generateKeyPair()
 	{
 		try {
@@ -92,5 +130,50 @@ public class RsaFactory
 		}
 		return null;
 	}
+
+	@Override
+	public PrivateKey readPrivateKey(byte[] contents)
+	{
+		try
+		{
+			KeyFactory kf = KeyFactory.getInstance("RSA");
+			KeySpec keyspec = new PKCS8EncodedKeySpec(contents);
+			return kf.generatePrivate(keyspec);
+		}
+		catch (NoSuchAlgorithmException e)
+		{
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		catch (InvalidKeySpecException e)
+		{
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return null;
+	}
+
+	@Override
+	public PublicKey readPublicKey(byte[] contents)
+	{
+		try
+		{
+			KeyFactory kf = KeyFactory.getInstance("RSA");
+			KeySpec keyspec = new X509EncodedKeySpec(contents);
+			return kf.generatePublic(keyspec);
+		}
+		catch (NoSuchAlgorithmException e)
+		{
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		catch (InvalidKeySpecException e)
+		{
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return null;
+	}
+
 
 }

@@ -17,11 +17,20 @@
  */
 package ca.uqac.lif.artichoke;
 
+import java.io.BufferedOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
 import java.security.MessageDigest;
+import java.security.PrivateKey;
+import java.security.PublicKey;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
+
+import ca.uqac.lif.fs.FileSystem;
+import ca.uqac.lif.fs.FileSystemException;
+import ca.uqac.lif.fs.FileUtils;
 
 public class HistoryManager 
 {
@@ -33,9 +42,9 @@ public class HistoryManager
 
 	Map<String,Action> m_actionDirectory;
 
-	static String s_historySeparator = "|";
+	static String s_historySeparator = "#";
 
-	static String s_elementSeparator = "?";
+	static String s_elementSeparator = ":";
 
 	public HistoryManager(MessageDigest digest)
 	{
@@ -244,5 +253,119 @@ public class HistoryManager
 			p.evaluate(he.getPeer(), a, he.getGroup());
 		}
 		return true;
+	}
+	
+	public Peer getPeer(String name)
+	{
+		if (m_peerDirectory.containsKey(name))
+		{
+			return m_peerDirectory.get(name);
+		}
+		return null;
+	}
+	
+	public Group getGroup(String name)
+	{
+		if (m_groupDirectory.containsKey(name))
+		{
+			return m_groupDirectory.get(name);
+		}
+		return null;
+	}
+	
+	public void write(FileSystem fs, EncryptionFactory factory) throws FileSystemException, IOException
+	{
+		fs.mkdir("peers");
+		fs.chdir("peers");
+		writePeerKeys(fs, factory);
+		fs.popd();
+		fs.mkdir("groups");
+		fs.chdir("groups");
+		writeGroupKeys(fs, factory);
+		fs.popd();
+	}
+	
+	public void read(FileSystem fs, EncryptionFactory factory) throws FileSystemException, IOException
+	{
+		fs.chdir("peers");
+		readPeerKeys(fs, factory);
+		fs.popd();
+		fs.chdir("groups");
+		readGroupKeys(fs, factory);
+		fs.popd();
+	}
+
+	protected void writePeerKeys(FileSystem fs, EncryptionFactory factory) throws FileSystemException, IOException
+	{
+		for (Map.Entry<String,Peer> e : m_peerDirectory.entrySet())
+		{
+			Peer p = e.getValue();
+			{
+				OutputStream os = fs.writeTo(e.getKey() + ".pri");
+				BufferedOutputStream bos = new BufferedOutputStream(os);
+				bos.write(p.getPrivateKey().getEncoded());
+				bos.close();
+			}
+			{
+				OutputStream os = fs.writeTo(e.getKey() + ".pub");
+				BufferedOutputStream bos = new BufferedOutputStream(os);
+				bos.write(p.getPublicKey().getEncoded());
+				bos.close();
+			}
+		}
+	}
+	
+	protected void readPeerKeys(FileSystem fs, EncryptionFactory factory) throws FileSystemException, IOException
+	{
+		for (String pub_filename : FileUtils.ls(fs, ".", "^.*\\.pub$"))
+		{
+			String peer_name = pub_filename.replace(".pub", "");
+			PublicKey k_pub = factory.readPublicKey(FileUtils.toBytes(fs.readFrom(pub_filename)));
+			PrivateKey k_pri = null;
+			String pri_filename = pub_filename.replace(".pub", ".pri");
+			if (fs.isFile(pri_filename))
+			{
+				k_pri = factory.readPrivateKey(FileUtils.toBytes(fs.readFrom(pri_filename)));
+			}
+			Peer p = factory.newPeer(peer_name, k_pub, k_pri);
+			m_peerDirectory.put(peer_name, p);
+		}
+	}
+	
+	protected void writeGroupKeys(FileSystem fs, EncryptionFactory factory) throws FileSystemException, IOException
+	{
+		for (Map.Entry<String,Group> e : m_groupDirectory.entrySet())
+		{
+			Group g = e.getValue();
+			{
+				OutputStream os = fs.writeTo(e.getKey() + ".pri");
+				BufferedOutputStream bos = new BufferedOutputStream(os);
+				bos.write(g.getPrivateKey().getEncoded());
+				bos.close();
+			}
+			{
+				OutputStream os = fs.writeTo(e.getKey() + ".pub");
+				BufferedOutputStream bos = new BufferedOutputStream(os);
+				bos.write(g.getPublicKey().getEncoded());
+				bos.close();
+			}
+		}
+	}
+	
+	public void readGroupKeys(FileSystem fs, EncryptionFactory factory) throws FileSystemException, IOException
+	{
+		for (String pub_filename : FileUtils.ls(fs, ".", "^.*\\.pub$"))
+		{
+			String group_name = pub_filename.replace(".pub", "");
+			PublicKey k_pub = factory.readPublicKey(FileUtils.toBytes(fs.readFrom(pub_filename)));
+			PrivateKey k_pri = null;
+			String pri_filename = pub_filename.replace(".pub", ".pri");
+			if (fs.isFile(pri_filename))
+			{
+				k_pri = factory.readPrivateKey(FileUtils.toBytes(fs.readFrom(pri_filename)));
+			}
+			Group g = factory.newGroup(group_name, k_pub, k_pri);
+			m_groupDirectory.put(group_name, g);
+		}
 	}
 }

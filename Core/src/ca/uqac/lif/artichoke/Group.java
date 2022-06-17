@@ -43,6 +43,15 @@ public class Group
 		m_cipher = c;
 	}
 	
+	public Group(String name, Cipher c, PublicKey k_pub, PrivateKey k_pri)
+	{
+		super();
+		m_name = name;
+		m_cipher = c;
+		m_publicKey = k_pub;
+		m_privateKey = k_pri;
+	}
+	
 	public void setKeyPair(KeyPair pair)
 	{
 		m_privateKey = pair.getPrivate();
@@ -53,6 +62,16 @@ public class Group
 	{
 		m_privateKey = private_key;
 		m_publicKey = public_key;
+	}
+	
+	public PrivateKey getPrivateKey()
+	{
+		return m_privateKey;
+	}
+	
+	public PublicKey getPublicKey()
+	{
+		return m_publicKey;
 	}
 	
 	public String getName()

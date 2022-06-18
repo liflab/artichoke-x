@@ -100,8 +100,7 @@ public class RsaFactory implements EncryptionFactory
 		Cipher c;
 		try {
 			c = Cipher.getInstance("RSA");
-			Group g = new Group(name, c);
-			g.setKeyPair(generateKeyPair());
+			Group g = new Group(name, c, k_pub, k_pri);
 			return g;
 		} catch (NoSuchAlgorithmException e) {
 			// TODO Auto-generated catch block

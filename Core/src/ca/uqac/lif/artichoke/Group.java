@@ -101,8 +101,27 @@ public class Group
 		}
 	}
 	
+	public boolean belongsTo(HistoryElement e)
+	{
+		return equals(e.getGroup());
+	}
+	
+	@Override
+	public boolean equals(Object o)
+	{
+		if (!(o instanceof Group))
+		{
+			return false;
+		}
+		return m_name.compareTo(((Group) o).getName()) == 0;
+	}
+	
 	public byte[] decryptAction(byte[] b) throws EncryptionException
 	{
+		if (m_privateKey == null)
+		{
+			throw new EncryptionException("No private key to decrypt");
+		}
 		try
 		{
 			m_cipher.init(Cipher.DECRYPT_MODE, m_privateKey);

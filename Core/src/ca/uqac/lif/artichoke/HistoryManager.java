@@ -19,7 +19,9 @@ package ca.uqac.lif.artichoke;
 
 import java.io.BufferedOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.PrintStream;
 import java.security.MessageDigest;
 import java.security.PrivateKey;
 import java.security.PublicKey;
@@ -31,28 +33,38 @@ import java.util.Map;
 import ca.uqac.lif.fs.FileSystem;
 import ca.uqac.lif.fs.FileSystemException;
 import ca.uqac.lif.fs.FileUtils;
+import ca.uqac.lif.fs.HardDisk;
+import ca.uqac.lif.fs.ReadZipFile;
 
 public class HistoryManager 
 {
-	MessageDigest m_digest;
+	protected MessageDigest m_digest;
 
-	Map<String,Peer> m_peerDirectory;
+	protected EncryptionFactory m_encryptionFactory;
 
-	Map<String,Group> m_groupDirectory;
+	protected Map<String,Peer> m_peerDirectory;
 
-	Map<String,Action> m_actionDirectory;
+	protected Map<String,Group> m_groupDirectory;
 
-	static String s_historySeparator = "#";
+	protected Map<String,Action> m_actionDirectory;
 
-	static String s_elementSeparator = ":";
+	protected static String s_historySeparator = "#";
 
-	public HistoryManager(MessageDigest digest)
+	protected static String s_elementSeparator = ":";
+
+	public HistoryManager(MessageDigest digest, EncryptionFactory factory)
 	{
 		super();
 		m_digest = digest;
+		m_encryptionFactory = factory;
 		m_peerDirectory = new HashMap<String,Peer>();
 		m_groupDirectory = new HashMap<String,Group>();
 		m_actionDirectory = new HashMap<String,Action>();
+	}
+	
+	public EncryptionFactory getEncryptionFactory()
+	{
+		return m_encryptionFactory;
 	}
 
 	public void add(Peer ... peers)
@@ -159,7 +171,8 @@ public class HistoryManager
 	{
 		Base64.Encoder encoder = Base64.getEncoder();
 		StringBuilder sb = new StringBuilder();
-		sb.append(encoder.encodeToString(he.getAction()));
+		String encrypted_action = encoder.encodeToString(he.getAction());
+		sb.append(encrypted_action);
 		sb.append(s_elementSeparator);
 		sb.append(he.getPeer().getName());
 		sb.append(s_elementSeparator);
@@ -254,7 +267,27 @@ public class HistoryManager
 		}
 		return true;
 	}
-	
+
+	public void printDecrypted(History h, PrintStream ps)
+	{
+		for (HistoryElement he : h)
+		{
+			Group g = he.getGroup();
+			String action_name = "?";
+			try
+			{
+				String name = new String(g.decryptAction(he.getAction()));
+				Action a = m_actionDirectory.get(name);
+				action_name = a.getName();
+			}
+			catch (EncryptionException e)
+			{
+				action_name = "X";
+			}
+			ps.print("(" + he.getPeer() + "," + action_name + "," + he.getGroup() + ")");
+		}
+	}
+
 	public Peer getPeer(String name)
 	{
 		if (m_peerDirectory.containsKey(name))
@@ -264,6 +297,15 @@ public class HistoryManager
 		return null;
 	}
 	
+	public Action getAction(String name)
+	{
+		if (m_actionDirectory.containsKey(name))
+		{
+			return m_actionDirectory.get(name);
+		}
+		return null;
+	}
+
 	public Group getGroup(String name)
 	{
 		if (m_groupDirectory.containsKey(name))
@@ -272,34 +314,53 @@ public class HistoryManager
 		}
 		return null;
 	}
-	
-	public void write(FileSystem fs, EncryptionFactory factory) throws FileSystemException, IOException
+
+	public void write(FileSystem fs) throws FileSystemException, IOException
 	{
 		fs.mkdir("peers");
 		fs.chdir("peers");
-		writePeerKeys(fs, factory);
+		writePeerKeys(fs);
 		fs.popd();
 		fs.mkdir("groups");
 		fs.chdir("groups");
-		writeGroupKeys(fs, factory);
-		fs.popd();
-	}
-	
-	public void read(FileSystem fs, EncryptionFactory factory) throws FileSystemException, IOException
-	{
-		fs.chdir("peers");
-		readPeerKeys(fs, factory);
-		fs.popd();
-		fs.chdir("groups");
-		readGroupKeys(fs, factory);
+		writeGroupKeys(fs);
 		fs.popd();
 	}
 
-	protected void writePeerKeys(FileSystem fs, EncryptionFactory factory) throws FileSystemException, IOException
+	public void readFromZip(String filename) throws FileSystemException, IOException
+	{
+		HardDisk fs = new HardDisk("/");
+		fs.open();
+		InputStream is = fs.readFrom(filename);
+		ReadZipFile zip = new ReadZipFile(is);
+		zip.open();
+		read(zip);
+		is.close();
+		zip.close();
+		fs.close();
+	}
+
+	public void read(FileSystem fs) throws FileSystemException, IOException
+	{
+		fs.chdir("peers");
+		readPeerKeys(fs);
+		fs.popd();
+		fs.chdir("groups");
+		readGroupKeys(fs);
+		fs.popd();
+	}
+
+	public void writePeerKeys(FileSystem fs) throws FileSystemException, IOException
+	{
+		writePeerKeys(fs, null);
+	}
+
+	public void writePeerKeys(FileSystem fs, String peer_name) throws FileSystemException, IOException
 	{
 		for (Map.Entry<String,Peer> e : m_peerDirectory.entrySet())
 		{
 			Peer p = e.getValue();
+			if (peer_name == null || p.getName().compareTo(peer_name) == 0)
 			{
 				OutputStream os = fs.writeTo(e.getKey() + ".pri");
 				BufferedOutputStream bos = new BufferedOutputStream(os);
@@ -314,29 +375,36 @@ public class HistoryManager
 			}
 		}
 	}
-	
-	protected void readPeerKeys(FileSystem fs, EncryptionFactory factory) throws FileSystemException, IOException
+
+	protected void readPeerKeys(FileSystem fs) throws FileSystemException, IOException
 	{
 		for (String pub_filename : FileUtils.ls(fs, ".", "^.*\\.pub$"))
 		{
 			String peer_name = pub_filename.replace(".pub", "");
-			PublicKey k_pub = factory.readPublicKey(FileUtils.toBytes(fs.readFrom(pub_filename)));
+			byte[] key_bytes = FileUtils.toBytes(fs.readFrom(pub_filename));
+			PublicKey k_pub = m_encryptionFactory.readPublicKey(key_bytes);
 			PrivateKey k_pri = null;
 			String pri_filename = pub_filename.replace(".pub", ".pri");
 			if (fs.isFile(pri_filename))
 			{
-				k_pri = factory.readPrivateKey(FileUtils.toBytes(fs.readFrom(pri_filename)));
+				k_pri = m_encryptionFactory.readPrivateKey(FileUtils.toBytes(fs.readFrom(pri_filename)));
 			}
-			Peer p = factory.newPeer(peer_name, k_pub, k_pri);
+			Peer p = m_encryptionFactory.newPeer(peer_name, k_pub, k_pri);
 			m_peerDirectory.put(peer_name, p);
 		}
 	}
-	
-	protected void writeGroupKeys(FileSystem fs, EncryptionFactory factory) throws FileSystemException, IOException
+
+	public void writeGroupKeys(FileSystem fs) throws FileSystemException, IOException
+	{
+		writeGroupKeys(fs, null);
+	}
+
+	public void writeGroupKeys(FileSystem fs, String group_name) throws FileSystemException, IOException
 	{
 		for (Map.Entry<String,Group> e : m_groupDirectory.entrySet())
 		{
 			Group g = e.getValue();
+			if (group_name == null || g.getName().compareTo(group_name) == 0)
 			{
 				OutputStream os = fs.writeTo(e.getKey() + ".pri");
 				BufferedOutputStream bos = new BufferedOutputStream(os);
@@ -351,20 +419,20 @@ public class HistoryManager
 			}
 		}
 	}
-	
-	public void readGroupKeys(FileSystem fs, EncryptionFactory factory) throws FileSystemException, IOException
+
+	public void readGroupKeys(FileSystem fs) throws FileSystemException, IOException
 	{
 		for (String pub_filename : FileUtils.ls(fs, ".", "^.*\\.pub$"))
 		{
 			String group_name = pub_filename.replace(".pub", "");
-			PublicKey k_pub = factory.readPublicKey(FileUtils.toBytes(fs.readFrom(pub_filename)));
+			PublicKey k_pub = m_encryptionFactory.readPublicKey(FileUtils.toBytes(fs.readFrom(pub_filename)));
 			PrivateKey k_pri = null;
 			String pri_filename = pub_filename.replace(".pub", ".pri");
 			if (fs.isFile(pri_filename))
 			{
-				k_pri = factory.readPrivateKey(FileUtils.toBytes(fs.readFrom(pri_filename)));
+				k_pri = m_encryptionFactory.readPrivateKey(FileUtils.toBytes(fs.readFrom(pri_filename)));
 			}
-			Group g = factory.newGroup(group_name, k_pub, k_pri);
+			Group g = m_encryptionFactory.newGroup(group_name, k_pub, k_pri);
 			m_groupDirectory.put(group_name, g);
 		}
 	}

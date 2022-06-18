@@ -12,12 +12,12 @@ import ca.uqac.lif.artichoke.Group;
 import ca.uqac.lif.artichoke.History;
 import ca.uqac.lif.artichoke.HistoryManager;
 import ca.uqac.lif.artichoke.Peer;
-import ca.uqac.lif.artichoke.metadata.JpegExifMetadataBridge;
 import ca.uqac.lif.fs.FileProxy;
 import ca.uqac.lif.fs.FileSystem;
 import ca.uqac.lif.fs.FileSystemException;
 import ca.uqac.lif.fs.HardDisk;
 import ca.uqac.lif.fs.WriteZipFile;
+import ca.uqac.lif.fs.memento.JpegExifMemento;
 
 public class Populate
 {
@@ -43,16 +43,16 @@ public class Populate
 		hm.appendAction(h, "Carl", "c", "G1");
 		
 		// Save peer-action sequence
-		FileSystem fs_out = new HardDisk("/tmp");
+		FileSystem fs_out = new HardDisk(".");
 		fs_out.open();
-		FileProxy file = new FileProxy(fs_out, "Oli.jpg");
-		JpegExifMetadataBridge bridge = new JpegExifMetadataBridge(file);
+		FileProxy file = new FileProxy(fs_out, args[0]);
+		JpegExifMemento bridge = new JpegExifMemento(file);
 		String sh = hm.serializeHistory(h);
 		bridge.write(sh);
 		fs_out.close();
 
 		// Save keyring
-		FileSystem fs_save = new HardDisk("/tmp/artitest");
+		FileSystem fs_save = new HardDisk(".");
 		fs_save.open();
 		{
 			OutputStream os = fs_save.writeTo("All.zip");

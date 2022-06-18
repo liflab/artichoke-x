@@ -260,7 +260,9 @@ public class HistoryManager
 			}
 			catch (EncryptionException e)
 			{
-				throw new PolicyViolationException(e);
+				// Ignore this event
+				continue;
+				//throw new PolicyViolationException(e);
 			}
 			Action a = m_actionDirectory.get(action_name);
 			p.evaluate(he.getPeer(), a, he.getGroup());
@@ -329,7 +331,7 @@ public class HistoryManager
 
 	public void readFromZip(String filename) throws FileSystemException, IOException
 	{
-		HardDisk fs = new HardDisk("/");
+		HardDisk fs = new HardDisk(".");
 		fs.open();
 		InputStream is = fs.readFrom(filename);
 		ReadZipFile zip = new ReadZipFile(is);

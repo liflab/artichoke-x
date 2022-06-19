@@ -28,6 +28,7 @@ import java.security.PublicKey;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import ca.uqac.lif.fs.FileSystem;
@@ -396,17 +397,13 @@ public class HistoryManager
 		}
 	}
 
-	public void writeGroupKeys(FileSystem fs) throws FileSystemException, IOException
+	public void writeGroupKeys(FileSystem fs, String ... group_names) throws FileSystemException, IOException
 	{
-		writeGroupKeys(fs, null);
-	}
-
-	public void writeGroupKeys(FileSystem fs, String group_name) throws FileSystemException, IOException
-	{
+		List<String> l_group_names = Arrays.asList(group_names);
 		for (Map.Entry<String,Group> e : m_groupDirectory.entrySet())
 		{
 			Group g = e.getValue();
-			if (group_name == null || g.getName().compareTo(group_name) == 0)
+			if (group_names.length == 0 || l_group_names.contains(g.getName()))
 			{
 				OutputStream os = fs.writeTo(e.getKey() + ".pri");
 				BufferedOutputStream bos = new BufferedOutputStream(os);

@@ -35,7 +35,7 @@ public class AbcPolicy implements Policy
 		}
 		if (a.getName().compareTo(next) != 0)
 		{
-			throw new PolicyViolationException("Policy is violated");
+			throw new PolicyViolationException("Policy is violated: expected '" + next + "' and got '" + a.getName() + "'");
 		}
 		m_next.put(g.getName(), nextAction(next));
 		return true;

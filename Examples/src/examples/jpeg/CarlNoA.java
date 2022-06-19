@@ -25,6 +25,6 @@ public class CarlNoA implements Policy
 		{
 			return true;
 		}
-		throw new PolicyViolationException("Policy is violated");
+		throw new PolicyViolationException("Policy is violated: Carl has an 'a'");
 	}
 }

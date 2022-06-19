@@ -29,9 +29,11 @@ public class Populate
 		peers.put("Alice", hm.getEncryptionFactory().newPeer("Alice"));
 		peers.put("Bob", hm.getEncryptionFactory().newPeer("Bob"));
 		peers.put("Carl", hm.getEncryptionFactory().newPeer("Carl"));
+		peers.put("Doris", hm.getEncryptionFactory().newPeer("Doris"));
 		Map<String,Group> groups = new HashMap<String,Group>();
 		groups.put("G1", hm.getEncryptionFactory().newGroup("G1"));
 		groups.put("G2", hm.getEncryptionFactory().newGroup("G2"));
+		groups.put("G3", hm.getEncryptionFactory().newGroup("G3"));
 		hm.setPeerDirectory(peers);
 		hm.setGroupDirectory(groups);
 		
@@ -41,6 +43,7 @@ public class Populate
 		hm.appendAction(h, "Alice", "b", "G1");
 		hm.appendAction(h, "Bob", "a", "G2");
 		hm.appendAction(h, "Carl", "c", "G1");
+		hm.appendAction(h, "Doris", "a", "G3");
 		
 		// Save peer-action sequence
 		FileSystem fs_out = new HardDisk(".");
@@ -63,12 +66,13 @@ public class Populate
 			os.close();
 		}
 		// Save individual keyrings
-		saveKeyring(fs_save, hm, "Alice", "G1");
-		saveKeyring(fs_save, hm, "Bob", "G2");
+		saveKeyring(fs_save, hm, "Alice", "G1", "G2");
+		saveKeyring(fs_save, hm, "Bob", "G1", "G2", "G3");
 		saveKeyring(fs_save, hm, "Carl", "G1");
+		saveKeyring(fs_save, hm, "Doris", "G1", "G3");
 	}
 
-	protected static void saveKeyring(FileSystem fs, HistoryManager hm, String peer_name, String group_name) throws FileSystemException, IOException
+	protected static void saveKeyring(FileSystem fs, HistoryManager hm, String peer_name, String ... group_names) throws FileSystemException, IOException
 	{
 		OutputStream os = fs.writeTo(peer_name + ".zip");
 		WriteZipFile zip = new WriteZipFile(os);
@@ -77,7 +81,7 @@ public class Populate
 		hm.writePeerKeys(zip, peer_name);
 		zip.popd();
 		zip.pushd("groups");
-		hm.writeGroupKeys(zip, group_name);
+		hm.writeGroupKeys(zip, group_names);
 		zip.popd();
 		zip.close();
 		os.close();

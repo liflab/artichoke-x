@@ -12,6 +12,7 @@ import ca.uqac.lif.artichoke.Group;
 import ca.uqac.lif.artichoke.History;
 import ca.uqac.lif.artichoke.HistoryElement;
 import ca.uqac.lif.artichoke.HistoryManager;
+import ca.uqac.lif.artichoke.NoKeyException;
 import ca.uqac.lif.artichoke.Peer;
 import ca.uqac.lif.artichoke.RsaFactory;
 import examples.jpeg.AnsiPrinter.Color;
@@ -28,7 +29,7 @@ public class AbcHistoryManager extends HistoryManager
 		setActionDirectory(actions);
 	}
 	
-	public void alterAction(History history, int index, Peer p, Action a, Group g) throws EncryptionException
+	public void alterAction(History history, int index, Peer p, Action a, Group g, Peer current) throws EncryptionException
 	{
 		byte[] last_digest = new byte[]{0};
 		if (!history.isEmpty())
@@ -40,7 +41,15 @@ public class AbcHistoryManager extends HistoryManager
 		byte[] encrypted_action = g.encryptAction(a);
 		byte[] digest_string = concatenateDigest(last_digest, encrypted_action, g);
 		byte[] new_digest = getDigest().digest(digest_string);
-		byte[] encrypted_digest = p.encryptDigest(new_digest);
+		byte[] encrypted_digest = null;
+		if (p.getPrivateKey() != null)
+		{
+			encrypted_digest = p.encryptDigest(new_digest);
+		}
+		else
+		{
+			encrypted_digest = current.encryptDigest(new_digest);
+		}
 		// Create the new history element
 		HistoryElement new_he = new HistoryElement(encrypted_action, p, g, encrypted_digest);
 		history.set(index, new_he);
@@ -80,8 +89,12 @@ public class AbcHistoryManager extends HistoryManager
 			{
 				action_name = "X";
 			}
+			catch (NoKeyException e)
+			{
+				action_name = "?";
+			}
 			ps.print("(");
-			ps.setForegroundColor(Color.YELLOW);
+			ps.setForegroundColor(Color.LIGHT_GREEN);
 			ps.print(he.getPeer());
 			ps.resetColors();
 			ps.print(",");
@@ -89,14 +102,18 @@ public class AbcHistoryManager extends HistoryManager
 			{
 				ps.setBackgroundColor(Color.RED);
 			}
+			else if (action_name.compareTo("?") == 0)
+			{
+				ps.setBackgroundColor(Color.LIGHT_GRAY);
+			}
 			else
 			{
-				ps.setForegroundColor(Color.LIGHT_CYAN);
+				ps.setForegroundColor(Color.LIGHT_PURPLE);
 			}
 			ps.print(action_name);
 			ps.resetColors();
 			ps.print(",");
-			ps.setForegroundColor(Color.LIGHT_PURPLE);
+			ps.setForegroundColor(Color.LIGHT_CYAN);
 			ps.print(he.getGroup());
 			ps.resetColors();
 			ps.print(")");

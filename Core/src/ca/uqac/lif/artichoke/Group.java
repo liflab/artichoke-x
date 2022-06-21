@@ -116,11 +116,11 @@ public class Group
 		return m_name.compareTo(((Group) o).getName()) == 0;
 	}
 	
-	public byte[] decryptAction(byte[] b) throws EncryptionException
+	public byte[] decryptAction(byte[] b) throws NoKeyException, EncryptionException
 	{
 		if (m_privateKey == null)
 		{
-			throw new EncryptionException("No private key to decrypt");
+			throw new NoKeyException("No private key to decrypt");
 		}
 		try
 		{

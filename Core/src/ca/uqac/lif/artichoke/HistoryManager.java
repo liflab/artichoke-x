@@ -259,11 +259,15 @@ public class HistoryManager
 			{
 				action_name = new String(g.decryptAction(he.getAction()));
 			}
-			catch (EncryptionException e)
+			catch (NoKeyException e)
 			{
 				// Ignore this event
 				continue;
-				//throw new PolicyViolationException(e);
+			}
+			catch (EncryptionException e)
+			{
+				// Ignore this event
+				throw new PolicyViolationException(e);
 			}
 			Action a = m_actionDirectory.get(action_name);
 			p.evaluate(he.getPeer(), a, he.getGroup());
@@ -286,6 +290,10 @@ public class HistoryManager
 			catch (EncryptionException e)
 			{
 				action_name = "X";
+			}
+			catch (NoKeyException e)
+			{
+				action_name = "?";
 			}
 			ps.print("(" + he.getPeer() + "," + action_name + "," + he.getGroup() + ")");
 		}

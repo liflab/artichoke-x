@@ -11,6 +11,7 @@ import ca.uqac.lif.artichoke.Group;
 import ca.uqac.lif.artichoke.History;
 import ca.uqac.lif.artichoke.HistoryElement;
 import ca.uqac.lif.artichoke.InvalidHistoryException;
+import ca.uqac.lif.artichoke.NoKeyException;
 import ca.uqac.lif.artichoke.Peer;
 import ca.uqac.lif.artichoke.Policy;
 import ca.uqac.lif.artichoke.PolicyViolationException;
@@ -23,7 +24,7 @@ import examples.jpeg.AnsiPrinter.Color;
 
 public class PeerPrompt
 {
-	public static void main(String[] args) throws FileSystemException, IOException, NoSuchAlgorithmException, InvalidHistoryException, EncryptionException
+	public static void main(String[] args) throws FileSystemException, IOException, NoSuchAlgorithmException, InvalidHistoryException, EncryptionException, NoKeyException
 	{
 		// Standard streams with ANSI colors
 		AnsiPrinter out = new AnsiPrinter(System.out);
@@ -118,15 +119,15 @@ public class PeerPrompt
 				switch (to_modify)
 				{
 				case "action": {
-					hm.alterAction(h, index, elem.getPeer(), hm.getAction(value), elem.getGroup());
+					hm.alterAction(h, index, elem.getPeer(), hm.getAction(value), elem.getGroup(), hm.getPeer(peer_name));
 					break; }
 				case "peer": {
 					Group g = elem.getGroup();
-					hm.alterAction(h, index, hm.getPeer(value), hm.getAction(new String(g.decryptAction(elem.getAction()))), elem.getGroup());
+					hm.alterAction(h, index, hm.getPeer(value), hm.getAction(new String(g.decryptAction(elem.getAction()))), elem.getGroup(), hm.getPeer(peer_name));
 					break; }
 				case "group": {
 					Group g = elem.getGroup();
-					hm.alterAction(h, index, elem.getPeer(), hm.getAction(new String(g.decryptAction(elem.getAction()))), hm.getGroup(value));
+					hm.alterAction(h, index, elem.getPeer(), hm.getAction(new String(g.decryptAction(elem.getAction()))), hm.getGroup(value), hm.getPeer(peer_name));
 					break; }
 				default:
 					System.err.println("Cannot modify");
